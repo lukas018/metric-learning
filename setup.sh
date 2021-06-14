@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/usr/bin/env sh
 
 # Initialize learn2learn, we need the latest pytorch lightning functionality
 git submodule update --init --recursive
