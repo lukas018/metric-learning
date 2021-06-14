@@ -51,7 +51,7 @@ def split_mini_imagenet(ds, split: float = 0.9) -> tuple[Dataset, Dataset]:
     def random_split(indices: list[int]) -> tuple[list[int], list[int]]:
         random.shuffle(indices)
         cutoff = len(indices) * split
-        cutoff = int()
+        cutoff = int(cutoff)
         return indices[:cutoff], indices[cutoff:]
 
     indices = groups.values()
