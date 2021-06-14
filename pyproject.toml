@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "metric-learning"
+version = "0.1.0"
+description = ""
+authors = ["Lukas Lundmark <lukas018.lundmark@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+torch = "^1.8.1"
+learn2learn = {path = "./learn2learn/dist/learn2learn-0.1.5.tar.gz"}
+# learn2learn = {git="https://github.com/lukas018/learn2learn.git", branch="fix/poetry-fix", rev="c07e06d4f0ef67e148e23d07895a58a5318ecaca"}
+#
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "cython"]
+build-backend = "poetry.core.masonry.api"
