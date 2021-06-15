@@ -1,0 +1,7 @@
+milestones:
+  - 40
+  - 80
+n_epochs: 100
+checkpoint: "runs/pretrain-checkpoints"
+log: "runs/pretrain-logs"
+gpus: 1

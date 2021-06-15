@@ -156,6 +156,17 @@ ssh = ["bcrypt (>=3.1.5)"]
 test = ["pytest (>=6.0)", "pytest-cov", "pytest-subtests", "pytest-xdist", "pretend", "iso8601", "pytz", "hypothesis (>=1.11.4,!=3.79.2)"]
 
 [[package]]
+name = "dict-to-dataclass"
+version = "0.0.8"
+description = "Utils for mapping dataclass fields to dictionary keys, making it possible to create an instance of a dataclass from a dictionary."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+python-dateutil = "2.8.1"
+
+[[package]]
 name = "fasteners"
 version = "0.16.3"
 description = "A python package that provides useful locks."
@@ -624,6 +635,17 @@ checkqa-mypy = ["mypy (==v0.761)"]
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
 
 [[package]]
+name = "python-dateutil"
+version = "2.8.1"
+description = "Extensions to the standard Python datetime module"
+category = "main"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
+
+[package.dependencies]
+six = ">=1.5"
+
+[[package]]
 name = "pytorch-lightning"
 version = "1.3.5"
 description = "PyTorch Lightning is the lightweight PyTorch wrapper for ML researchers. Scale your models. Write less boilerplate."
@@ -891,7 +913,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "096d8820e495a942ed79f418fbde675fc23dfc51427d5cf245c4a43d8c47b2b3"
+content-hash = "22b187cd6c2e4009f955f29c3f31c2236ef616cd140aa3c976dffc092400eb6e"
 
 [metadata.files]
 absl-py = [
@@ -1048,6 +1070,10 @@ cryptography = [
     {file = "cryptography-3.4.7-pp37-pypy37_pp73-manylinux2014_x86_64.whl", hash = "sha256:ee77aa129f481be46f8d92a1a7db57269a2f23052d5f2433b4621bb457081cc9"},
     {file = "cryptography-3.4.7.tar.gz", hash = "sha256:3d10de8116d25649631977cb37da6cbdd2d6fa0e0281d014a5b7d337255ca713"},
 ]
+dict-to-dataclass = [
+    {file = "dict_to_dataclass-0.0.8-py3-none-any.whl", hash = "sha256:dc19ba72d3a5124409f09a1c56e004754240efb1e7379b0e790a4ef0be34b284"},
+    {file = "dict_to_dataclass-0.0.8.tar.gz", hash = "sha256:95784ab5dfa0e4cacb929e069ea738b8b2b00c2214414e30f4ed62e695069032"},
+]
 fasteners = [
     {file = "fasteners-0.16.3-py2.py3-none-any.whl", hash = "sha256:8408e52656455977053871990bd25824d85803b9417aa348f10ba29ef0c751f7"},
     {file = "fasteners-0.16.3.tar.gz", hash = "sha256:b1ab4e5adfbc28681ce44b3024421c4f567e705cc3963c732bf1cba3348307de"},
@@ -1146,7 +1172,7 @@ idna = [
     {file = "idna-2.10.tar.gz", hash = "sha256:b307872f855b18632ce0c21c5e45be78c0ea7ae4c15c828c20788b26921eb3f6"},
 ]
 learn2learn = [
-    {file = "learn2learn-0.1.5.tar.gz", hash = "sha256:dfa62b8b786f584d0d16240d99782140a18813a233d27e64f4ddb13731249a89"},
+    {file = "learn2learn-0.1.5.tar.gz", hash = "sha256:fe460a4fad28e2ca7a8475397506248e1c22c341b09f5763df4c8d3a95f572d7"},
 ]
 markdown = [
     {file = "Markdown-3.3.4-py3-none-any.whl", hash = "sha256:96c3ba1261de2f7547b46a00ea8463832c921d3f9d6aba3f255a6f71386db20c"},
@@ -1366,6 +1392,10 @@ pyparsing = [
 pytest = [
     {file = "pytest-5.4.3-py3-none-any.whl", hash = "sha256:5c0db86b698e8f170ba4582a492248919255fcd4c79b1ee64ace34301fb589a1"},
     {file = "pytest-5.4.3.tar.gz", hash = "sha256:7979331bfcba207414f5e1263b5a0f8f521d0f457318836a7355531ed1a4c7d8"},
+]
+python-dateutil = [
+    {file = "python-dateutil-2.8.1.tar.gz", hash = "sha256:73ebfe9dbf22e832286dafa60473e4cd239f8592f699aa5adaf10050e6e1823c"},
+    {file = "python_dateutil-2.8.1-py2.py3-none-any.whl", hash = "sha256:75bb3f31ea686f1197762692a9ee6a7550b59fc6ca3a1f4b5d7e32fb98e2da2a"},
 ]
 pytorch-lightning = [
     {file = "pytorch-lightning-1.3.5.tar.gz", hash = "sha256:6c1bd16b69f8dd927edaaa200ddbf64858a02f25f5a02c4186b12df8d99be652"},

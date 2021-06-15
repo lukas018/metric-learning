@@ -113,12 +113,12 @@ class MetaBaseline(MetricLearner):
         :returns: Prediction for each quey image. Logit dimension depends on
                  prediction mode-used.
         """
-
         bsz = query.shape[0]
 
         # flatten the input to bsz x dim_f
         features = self.model(query)
-        outputs = {}
+        outputs = None
+
         if support is not None or self.cached_centroids is not None:
 
             centroids = None
@@ -134,7 +134,7 @@ class MetaBaseline(MetricLearner):
 
             logits = self.dist_fn(features, centroids, dim=2)
             logits = self.temperature * logits
-            outputs["logits"] = logits
+            outputs = logits
 
         else:
 
@@ -146,6 +146,6 @@ class MetaBaseline(MetricLearner):
                 )
 
             logits = self.class_matrix(features)
-            outputs["logits"] = logits
+            outputs = logits
 
         return outputs
