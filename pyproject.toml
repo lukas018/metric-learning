@@ -9,6 +9,7 @@ python = "^3.9"
 torch = "^1.8.1"
 dict-to-dataclass = "^0.0.8"
 learn2learn = {path = "./learn2learn/dist/learn2learn-0.1.5.tar.gz"}
+sklearn = "^0.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

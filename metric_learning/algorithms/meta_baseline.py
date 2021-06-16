@@ -59,11 +59,12 @@ class MetaBaseline(MetricLearner):
         ):
             self.class_matrix = nn.Linear(dimensions, num_classes)
 
-    def compute_centroids(self, support, cache=False):
+    def compute_centroids(self, support, support_labels, cache=False):
         """Computes (and saves) the class centroids of the support images
 
-        :param support: Tensor of size [n, k, h, w, c] It is assumed that the
+        :param support: Tensor of size [n*k, h, w, c] It is assumed that the
             images is grouped with regards to class the classes
+        :param support_labels: Tensor of labels from 0 to n-1 of size [n*k]
         :param cache: Set to true to cache/save the centriods to use for later
             fewshot clasification.  This is useful if one wants to save a model
             trained on a particular fewshot learning task.
@@ -71,12 +72,19 @@ class MetaBaseline(MetricLearner):
         :returns: a embedding-vector for each class [n, e]
         """
 
-        nways = support.shape[0]
-        kshots = support.shape[1]
-        support_features = self.model(support.flatten(0, 1)).reshape(
-            (nways, kshots, -1),
-        )
-        centroids = support_features.mean(axis=1)
+        support_features = self.model(support)
+        support_labels = support_labels.view(support_labels.size(0), 1).expand(-1, support_features.size(1))
+        unique_support_labels, support_labels_count = support_labels.unique(dim=0, return_counts=True)
+        res = torch.zeros_like(unique_support_labels, dtype=torch.float).scatter_add_(0, support_labels, support_features)
+        centroids = res / support_labels_count.float().unsqueeze(1)
+
+
+        # nways = support.shape[0]
+        # kshots = support.shape[1]
+        # support_features = self.model(support.flatten(0, 1)).reshape(
+        #     (nways, kshots, -1),
+        # )
+        # centroids = support_features.mean(axis=1)
 
         if cache:
             self.cached_centroids = centroids
@@ -87,6 +95,7 @@ class MetaBaseline(MetricLearner):
         self,
         query: torch.Tensor,
         support: Optional[torch.Tensor] = None,
+        support_labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
         """
         Perform a forward pass as specified by the given query- and support set.
@@ -104,7 +113,8 @@ class MetaBaseline(MetricLearner):
         the support set.
 
         :param query: Set of images such that shape=[meta_bsz,bsz,channels,h,w]
-        :param support: Set of images such that shape=[bsz,channels, k, h, w]
+        :param support: Set of images such that shape=[n*k, channels, h, w]
+        :param support_labels: List of support_labels of value 0 to n-1 and of size [n*k]
 
         :raises ValueError: If no support images are provided and neither the
             init_pretrianing have been called nor a set of centriods have been
@@ -123,7 +133,11 @@ class MetaBaseline(MetricLearner):
 
             centroids = None
             if support is not None:
-                centroids = self.compute_centroids(support)
+
+                if support_labels is None:
+                    raise ValueError("Support samples was provided but no support_labels provides")
+
+                centroids = self.compute_centroids(support, support_labels)
 
             elif self.cached_centroids is not None:
                 centroids = self.cached_centroids

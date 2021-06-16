@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from typing import Any, Optional
 import torch
 from torch import optim
@@ -7,31 +6,33 @@ import pytorch_lightning as pl
 from torchmetrics.functional import accuracy
 from torch.nn.modules.loss import CrossEntropyLoss
 
-from dataclasses import dataclass, field
 import numpy as np
-from dict_to_dataclass import DataclassFromDict
-from ...arguments import PreTrainArguments, FewshotArguments
-from ..metric_learner import MetricLearner
+from metric_learning.arguments import PreTrainArguments, FewshotArguments
+from metric_learning.algorithms.metric_learner import MetricLearner
 
 
-def _log_step(logger, prelabel: str, loss: float, accuracy: float):
-    logger(
-        f"{prelabel}-loss",
-        loss,
-        on_step=False,
-        on_epoch=False,
-        prog_bar=False,
-        logger=True,
-    )
-    logger(
-        f"{prelabel}-accuracy",
-        accuracy,
-        on_step=False,
-        on_epoch=True,
-        prog_bar=True,
-        logger=True,
-    )
+def default_logger_step(
+    logger: Any, prelabel: str, loss: Optional[float], accuracy: Optional[float]
+):
+    if loss is not None:
+        logger(
+            f"{prelabel}-loss",
+            loss,
+            on_step=False,
+            on_epoch=False,
+            prog_bar=False,
+            logger=True,
+        )
 
+    if accuracy is not None:
+        logger(
+            f"{prelabel}-accuracy",
+            accuracy,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
 
 class LightningPretrainModule(pl.LightningModule):
     def __init__(
@@ -45,6 +46,7 @@ class LightningPretrainModule(pl.LightningModule):
         self.training_arguments = training_arguments
         self.loss_fn = torch.nn.CrossEntropyLoss()
         self.metric_model.init_pretraining(**kwargs)
+        # self.save_hyperparameters()
 
     def training_step(self, batch: torch.Tensor, _) -> torch.Tensor:
         inputs, labels = batch
@@ -52,7 +54,7 @@ class LightningPretrainModule(pl.LightningModule):
         labels = labels.long()
         loss = self.loss_fn(logits, labels)
         acc = accuracy(logits.softmax(dim=-1), labels)
-        _log_step(self.log, "training", loss.item(), float(acc.item()))
+        default_logger_step(self.log, "training", loss.item(), float(acc.item()))
         return loss
 
     def validation_step(self, batch: torch.Tensor, _) -> Optional[Any]:
@@ -61,7 +63,7 @@ class LightningPretrainModule(pl.LightningModule):
         labels = labels.long()
         loss = self.loss_fn(logits, labels)
         acc = accuracy(logits.softmax(dim=-1), labels)
-        _log_step(self.log, "validation", loss.item(), float(acc.item()))
+        default_logger_step(self.log, "validation", loss.item(), float(acc.item()))
         return loss.item()
 
     def test_step(self, batch: torch.Tensor, _) -> Optional[Any]:
@@ -70,13 +72,18 @@ class LightningPretrainModule(pl.LightningModule):
         logits = self.metric_model(inputs)
         loss = self.loss_fn(logits, labels)
         acc = accuracy(logits.softmax(dim=-1), labels)
-        _log_step(self.log, "test", loss.item(), float(acc.item()))
+        default_logger_step(self.log, "test", loss.item(), float(acc.item()))
         return loss.item()
 
     def configure_optimizers(
         self,
     ) -> tuple[list[optim.Optimizer], list[optim.lr_scheduler._LRScheduler]]:
-        optimizer = optim.SGD(self.parameters(), lr=self.training_arguments.lr, momentum=0.9)
+        optimizer = optim.SGD(
+            self.parameters(),
+            lr=self.training_arguments.lr,
+            momentum=self.training_arguments.momentum,
+            weight_decay=self.training_arguments.weight_decay
+        )
         lr_scheduler: optim.lr_scheduler._LRScheduler = optim.lr_scheduler.LambdaLR(
             optimizer, lambda _: 1.0
         )
@@ -86,7 +93,7 @@ class LightningPretrainModule(pl.LightningModule):
             lr_scheduler = optim.lr_scheduler.MultiStepLR(
                 optimizer,
                 milestones=self.training_arguments.milestones,
-                gamma=self.training_arguments.gamma,
+                gamma=self.training_arguments.lr_reduce,
             )
 
         return [optimizer], [lr_scheduler]
@@ -100,10 +107,11 @@ class LightningFewshotModule(pl.LightningModule):
         self.learner = learner
         self.fs_arguments = fs_arguments
         self.loss = CrossEntropyLoss()
+        # self.save_hyperparameters()
 
     def _support_query_split(
             self, batch: tuple[torch.Tensor, torch.Tensor],
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         """
 
@@ -144,17 +152,17 @@ class LightningFewshotModule(pl.LightningModule):
 
     def training_step(self, batch, _) -> torch.Tensor:
         loss, acc = self._meta_step(batch)
-        _log_step(self.log, "training", float(loss.item()), float(acc.item()))
+        default_logger_step(self.log, "training", float(loss.item()), float(acc.item()))
         return loss
 
     def validation_step(self, batch, _) -> torch.Tensor:
         loss, acc = self._meta_step(batch)
-        _log_step(self.log, "validation", float(loss.item()), float(acc.item()))
+        default_logger_step(self.log, "validation", float(loss.item()), float(acc.item()))
         return loss
 
     def test_step(self, batch, _) -> torch.Tensor:
         loss, acc = self._meta_step(batch)
-        _log_step(self.log, "test", float(loss.item()), float(acc.item()))
+        default_logger_step(self.log, "test", float(loss.item()), float(acc.item()))
         return loss
 
     def configure_optimizers(self) -> list[optim.Optimizer]:

@@ -223,7 +223,6 @@ class HfArgumentParser(ArgumentParser):
             inputs = {k: v for k, v in vars(namespace).items() if k in keys}
 
             if use_prefix:
-                breakpoint()
                 inputs = {k.replace(f"{prefix}_", "", 1): v for k, v in inputs.items()}
 
             for k in keys:

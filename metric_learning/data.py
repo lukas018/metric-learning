@@ -13,19 +13,20 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 from metric_learning.algorithms.lightning.metric_module import FewshotArguments
+from torchvision.transforms import Compose, Normalize, ToPILImage, ToTensor
 
 
 def initialize_mini_imagenet(
     fs_args: FewshotArguments,
     num_tasks=-1,
+    data_augmentaion="lee2019"
 ):
-    print(type(fs_args.ways))
     meta_datasets, tasks = l2l.vision.benchmarks.mini_imagenet_tasksets(
         fs_args.ways,
         fs_args.shots + fs_args.queries,
         fs_args.ways,
         fs_args.shots + fs_args.queries,
-        data_augmentation="lee2019"
+        data_augmentation=data_augmentaion
     )
 
     datasets = list(map(attrgetter("dataset"), meta_datasets))
@@ -34,8 +35,39 @@ def initialize_mini_imagenet(
         return l2l.data.TaskDataset(ds, transform, num_tasks=num_tasks)
 
     tasks = list(starmap(_create_taskdataset, zip(meta_datasets, tasks)))
+
+    if data_augmentaion is not None:
+        # Fix the normalization bug in learn2learn
+        # This makes all the datasets, including the task and validation dataset works
+        normalize = Normalize(
+            mean=[120.39586422 / 255.0, 115.59361427 / 255.0, 104.54012653 / 255.0],
+            std=[70.68188272 / 255.0, 68.27635443 / 255.0, 72.54505529 / 255.0],
+        )
+        val_transform = Compose(
+            [
+                ToPILImage(),
+                ToTensor(),
+                normalize,
+            ]
+        )
+
+        val_ds, test_ds = datasets[1:]
+        val_ds.transform = val_transform
+        test_ds.transform = val_transform
+
     return datasets, meta_datasets, tasks
 
+def _groupby(iterable: Iterable, key: Callable) -> dict:
+    dd = defaultdict(list)
+    for elem in iterable:
+        dd[key(elem)].append(elem)
+    return dd
+
+def _random_split(indices: list[int]) -> tuple[list[int], list[int]]:
+    random.shuffle(indices)
+    cutoff = len(indices) * split
+    cutoff = int(cutoff)
+    return indices[:cutoff], indices[cutoff:]
 
 def split_mini_imagenet(ds, split: float = 0.9) -> tuple[Dataset, Dataset]:
 
@@ -46,29 +78,33 @@ def split_mini_imagenet(ds, split: float = 0.9) -> tuple[Dataset, Dataset]:
     :returns:
 
     """
-
-    def groupby(iterable: Iterable, key: Callable) -> dict:
-        dd = defaultdict(list)
-        for elem in iterable:
-            dd[key(elem)].append(elem)
-        return dd
-
-    groups = groupby(range(len(ds)), key=lambda i: ds.y[i])
-
-    def random_split(indices: list[int]) -> tuple[list[int], list[int]]:
-        random.shuffle(indices)
-        cutoff = len(indices) * split
-        cutoff = int(cutoff)
-        return indices[:cutoff], indices[cutoff:]
+    groups = _groupby(range(len(ds)), key=lambda i: ds.y[i])
 
     indices = groups.values()
-    indices1, indices2 = (*zip(*map(random_split, indices)),)
+    indices1, indices2 = (*zip(*map(_random_split, indices)),)
 
     def _split_dataset(indices: list[int]) -> Dataset:
         idx = np.array(indices)
         ds_copy = copy.copy(ds)
         ds_copy.x = ds_copy.x[idx]
         ds_copy.y = ds_copy.y[idx]
+        return ds_copy
+
+    ds1 = _split_dataset(list(chain(*indices1)))
+    ds2 = _split_dataset(list(chain(*indices2)))
+    return ds1, ds2
+
+def split_vbs3_dataset(ds, split: float = 0.95):
+    from operator import itemgetter
+    labels = list(map(itemgetter(1), ds.samples))
+    groups = _groupby(range(len(ds)), key=lambda i: labels[i])
+    indices = groups.values()
+    indices1, indices2 = (*zip(*map(_random_split, indices)),)
+
+    def _split_dataset(indices: list[int]) -> Dataset:
+        idx = np.array(indices)
+        ds_copy = copy.copy(ds)
+        ds_copy.samples = ds.samples[idx]
         return ds_copy
 
     ds1 = _split_dataset(list(chain(*indices1)))
@@ -111,7 +147,9 @@ class EpisodicBatcher(pl.LightningDataModule):
             def __len__(self):
                 return self.length
 
-        return DataLoader(Epochifier(taskset, epoch_length), num_workers=8, batch_size=None)
+        return DataLoader(
+            Epochifier(taskset, epoch_length), num_workers=8, batch_size=None
+        )
 
     def train_dataloader(self):
         return EpisodicBatcher.epochify(
