@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import functools
 import copy
 import random
 from collections import defaultdict
@@ -63,7 +64,7 @@ def _groupby(iterable: Iterable, key: Callable) -> dict:
         dd[key(elem)].append(elem)
     return dd
 
-def _random_split(indices: list[int]) -> tuple[list[int], list[int]]:
+def _random_split(indices: list[int], split: float) -> tuple[list[int], list[int]]:
     random.shuffle(indices)
     cutoff = len(indices) * split
     cutoff = int(cutoff)
@@ -81,7 +82,8 @@ def split_mini_imagenet(ds, split: float = 0.9) -> tuple[Dataset, Dataset]:
     groups = _groupby(range(len(ds)), key=lambda i: ds.y[i])
 
     indices = groups.values()
-    indices1, indices2 = (*zip(*map(_random_split, indices)),)
+    _split = functools.partial(_random_split, split=split)
+    indices1, indices2 = (*zip(*map(_split, indices)),)
 
     def _split_dataset(indices: list[int]) -> Dataset:
         idx = np.array(indices)
@@ -99,7 +101,8 @@ def split_vbs3_dataset(ds, split: float = 0.95):
     labels = list(map(itemgetter(1), ds.samples))
     groups = _groupby(range(len(ds)), key=lambda i: labels[i])
     indices = groups.values()
-    indices1, indices2 = (*zip(*map(_random_split, indices)),)
+    _split = functools.partial(_random_split, split=split)
+    indices1, indices2 = (*zip(*map(_split, indices)),)
 
     def _split_dataset(indices: list[int]) -> Dataset:
         idx = np.array(indices)

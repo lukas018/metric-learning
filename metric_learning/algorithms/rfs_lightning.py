@@ -49,7 +49,7 @@ class BornAgainLightningModule(pl.LightningModule):
         self.teacher = teacher
         self.student = student
 
-        # Try to reinitiailize the student if we dont
+        # Try to reinitiailize the student if we dont provide it
         if student is None:
             self.student = copy.deepcopy(self.teacher)
 
@@ -60,6 +60,8 @@ class BornAgainLightningModule(pl.LightningModule):
                     m.reset_parameters()
 
             self.student.apply(weight_reset)
+
+        self.teacher.eval()
         # self.save_hyperparameters()
 
     def _loss(self, student_logits, teacher_logits, labels):
@@ -74,6 +76,7 @@ class BornAgainLightningModule(pl.LightningModule):
         student_logits = self.student(images)
 
         with torch.no_grad():
+            self.teacher.eval()
             teacher_logits = self.teacher(images)
 
         loss = self._loss(student_logits, teacher_logits, labels)

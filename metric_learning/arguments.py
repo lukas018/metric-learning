@@ -27,7 +27,7 @@ class PreTrainArguments:
         default=64, metadata={"help": "Size of gradient batch"}
     )
     accumulate_grad_batches: int = field(
-        default=4, metadata={"help": "Number of actual batches"}
+        default=1, metadata={"help": "Number of actual batches"}
     )
     gpus: List[int] = field(
         default_factory=lambda: [], metadata={"help": "Number of GPUS"}

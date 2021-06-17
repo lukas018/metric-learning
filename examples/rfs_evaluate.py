@@ -20,7 +20,7 @@ parser.add_argument("--model-checkpoint")
 fs_args: FewshotArguments
 args: argparse.Namespace
 fs_args, args = parser.parse_args_into_dataclasses()
-datasets, metadatasets, task_datasets = initialize_mini_imagenet(FewshotArguments())
+datasets, metadatasets, task_datasets = initialize_mini_imagenet(fs_args)
 episodic_batcher = EpisodicBatcher(*task_datasets, epoch_length=fs_args.epoch_length)
 # feat_extractor = l2l.vision.models.ResNet12(10).features
 

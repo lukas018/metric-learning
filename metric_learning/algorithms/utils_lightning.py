@@ -116,7 +116,6 @@ class LightningFewshotModule(pl.LightningModule):
         """
 
         images, labels = batch
-
         assert images.size(0) == self.fs_arguments.ways * (
             self.fs_arguments.shots + self.fs_arguments.queries
         )
