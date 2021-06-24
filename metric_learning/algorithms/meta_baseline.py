@@ -35,7 +35,8 @@ class MetaBaseline(MetricLearner):
 
         super().__init__()
         self.model = model
-        self.temperature = torch.tensor(float(temperature), requires_grad=True)
+        self.temperature = nn.Parameter(torch.tensor(10.))
+        #torch.tensor(float(temperature), requires_grad=True)
         self.dist_fn = dist_fn
         self.class_matrix: Optional[nn.Linear] = None
         self.cached_centroids: Optional[torch.Tensor] = None

@@ -34,6 +34,7 @@ def default_logger_step(
             logger=True,
         )
 
+
 class LightningPretrainModule(pl.LightningModule):
     def __init__(
         self,
@@ -82,7 +83,7 @@ class LightningPretrainModule(pl.LightningModule):
             self.parameters(),
             lr=self.training_arguments.lr,
             momentum=self.training_arguments.momentum,
-            weight_decay=self.training_arguments.weight_decay
+            weight_decay=self.training_arguments.weight_decay,
         )
         lr_scheduler: optim.lr_scheduler._LRScheduler = optim.lr_scheduler.LambdaLR(
             optimizer, lambda _: 1.0
@@ -100,8 +101,8 @@ class LightningPretrainModule(pl.LightningModule):
 
 
 class LightningFewshotModule(pl.LightningModule):
-    """Lightning Module for training few shot learners
-    """
+    """Lightning Module for training few shot learners"""
+
     def __init__(self, learner: MetricLearner, fs_arguments: FewshotArguments) -> None:
         super().__init__()
         self.learner = learner
@@ -110,10 +111,10 @@ class LightningFewshotModule(pl.LightningModule):
         # self.save_hyperparameters()
 
     def _support_query_split(
-            self, batch: tuple[torch.Tensor, torch.Tensor],
+        self,
+        batch: tuple[torch.Tensor, torch.Tensor],
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        """
+        """ """
 
         images, labels = batch
         assert images.size(0) == self.fs_arguments.ways * (
@@ -156,7 +157,9 @@ class LightningFewshotModule(pl.LightningModule):
 
     def validation_step(self, batch, _) -> torch.Tensor:
         loss, acc = self._meta_step(batch)
-        default_logger_step(self.log, "validation", float(loss.item()), float(acc.item()))
+        default_logger_step(
+            self.log, "validation", float(loss.item()), float(acc.item())
+        )
         return loss
 
     def test_step(self, batch, _) -> torch.Tensor:
@@ -165,5 +168,10 @@ class LightningFewshotModule(pl.LightningModule):
         return loss
 
     def configure_optimizers(self) -> list[optim.Optimizer]:
-        optimizer = optim.SGD(self.parameters(), lr=self.fs_arguments.lr)
+        optimizer = optim.SGD(
+            self.parameters(),
+            lr=self.fs_arguments.lr,
+            momentum=self.fs_arguments.momentum,
+            weight_decay=self.fs_arguments.weight_decay
+        )
         return [optimizer]

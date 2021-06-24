@@ -2,6 +2,7 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+from pytorch_lightning.accelerators import accelerator
 import torch
 from pytorch_lightning.plugins import  DDPPlugin
 from metric_learning.algorithms.rfs_lightning import BornAgainLightningModule, DistillArguments
@@ -25,6 +26,8 @@ pt_args = PreTrainArguments(
     lr=0.05,
     weight_decay=0.0005,
     n_epochs=100,
+    milestones=[40, 80],
+    checkpoint="rfs-models",
 )
 
 distill_args = DistillArguments(
@@ -37,12 +40,12 @@ distill_args = DistillArguments(
     n_generations=2,
     n_epochs=100,
     milestones=[40, 80],
+    checkpoint="rfs-models-distill",
 )
 
 # Initialize the data
 datasets, metadatasets, task_datasets = initialize_mini_imagenet(FewshotArguments())
 train_ds, base_val_ds = split_mini_imagenet(datasets[0], 0.98)
-train_ds = datasets[0]
 
 feat_extractor = resnet12(avg_pool=True)
 rfs = RepresentationForFS(feat_extractor, RFSClassifier.LogisticRegression)
@@ -61,16 +64,18 @@ pretrain_data_module = pl.LightningDataModule.from_datasets(
 )
 
 pt_trainer = pl.Trainer(
-    gpus=[0],
+    gpus=1,
     accumulate_grad_batches = pt_args.accumulate_grad_batches,
     default_root_dir="rfs-pretrain",
     max_epochs=pt_args.n_epochs,
     plugins= DDPPlugin(find_unused_parameters=False),
     callbacks=[lr_monitor],
+    accelerator="ddp"
 )
 
 pt_trainer.fit(pt_module, pretrain_data_module)
 teacher = pt_module.metric_model
+Path(str(distill_args.checkpoint)).mkdir(exist_ok=True)
 torch.save(teacher, Path(str(distill_args.checkpoint), f"rfs-distilled-model-org" ))
 
 # Do distillation
@@ -97,12 +102,14 @@ for i in range(distill_args.n_generations):
     )
 
     distill_trainer = pl.Trainer(
-        gpus=distill_args.gpus,
+        gpus=1,
         default_root_dir=f"{distill_args.checkpoint}-gen-{i}",
         accumulate_grad_batches=pt_args.accumulate_grad_batches,
         max_epochs=pt_args.n_epochs,
-        callbacks=[lr_monitor]
+        callbacks=[lr_monitor],
+        accelerator="ddp"
     )
+    
 
     distill_trainer.fit(distill_module, distill_data_module)
 

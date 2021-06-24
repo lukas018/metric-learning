@@ -126,6 +126,7 @@ class EpisodicBatcher(pl.LightningDataModule):
         validation_tasks=None,
         test_tasks=None,
         epoch_length=1,
+        n_test_tasks=100,
     ):
         super(EpisodicBatcher, self).__init__()
         self.train_tasks = train_tasks
@@ -136,6 +137,7 @@ class EpisodicBatcher(pl.LightningDataModule):
             test_tasks = validation_tasks
         self.test_tasks = test_tasks
         self.epoch_length = epoch_length
+        self.n_test_task = n_test_tasks
 
     @staticmethod
     def epochify(taskset, epoch_length):
@@ -163,12 +165,11 @@ class EpisodicBatcher(pl.LightningDataModule):
     def val_dataloader(self):
         return EpisodicBatcher.epochify(
             self.validation_tasks,
-            self.epoch_length,
+            self.n_test_task,
         )
 
     def test_dataloader(self):
-        length = self.epoch_length
         return EpisodicBatcher.epochify(
             self.test_tasks,
-            length,
+            self.n_test_task,
         )

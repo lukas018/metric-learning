@@ -44,6 +44,8 @@ class FewshotArguments:
     ways: int = 5
     shots: int = 1
     queries: int = 15
+    weight_decay: float = 0.0005
+    n_test_tasks: int = 100
 
     checkpoint: Optional[str] = None
     log: Optional[str] = None
@@ -56,6 +58,7 @@ class FewshotArguments:
         default_factory=lambda: [],
         metadata={"help": "Number of GPUS"}
     )
+    momentum: float = 0.9
     num_workers: int = field(
         default=10,
         metadata={'help': 'Number of workers'}
