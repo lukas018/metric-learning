@@ -331,8 +331,9 @@ class ResNet(nn.Module):
         f3 = x
         if self.keep_avg_pool:
             x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
+        # x = x.view(x.size(0), -1)
         feat = x
+
         if self.num_classes > 0:
             x = self.classifier(x)
 
