@@ -35,11 +35,15 @@ class MetaBaseline(MetricLearner):
 
         super().__init__()
         self.model = model
-        self.temperature = nn.Parameter(torch.tensor(10.))
+        self.temperature = nn.Parameter(torch.tensor(temperature))
+
+        assert self.temperature.requires_grad
+
         #torch.tensor(float(temperature), requires_grad=True)
         self.dist_fn = dist_fn
         self.class_matrix: Optional[nn.Linear] = None
         self.cached_centroids: Optional[torch.Tensor] = None
+        self.loss = nn.CrossEntropyLoss()
 
     def init_pretraining(self, dimensions: int, num_classes: int):
         """Initialize the new meta-baseline network for pre-training
@@ -60,6 +64,12 @@ class MetaBaseline(MetricLearner):
         ):
             self.class_matrix = nn.Linear(dimensions, num_classes)
 
+    def init_fewshot(self, freeze_bn=True):
+
+        if freeze_bn:
+            self.freeze_batch_norm_layers()
+
+
     def compute_centroids(self, support, support_labels, cache=False):
         """Computes (and saves) the class centroids of the support images
 
@@ -74,6 +84,8 @@ class MetaBaseline(MetricLearner):
         """
 
         support_features = self.model(support)
+
+
         support_labels = support_labels.view(support_labels.size(0), 1).expand(-1, support_features.size(1))
         unique_support_labels, support_labels_count = support_labels.unique(dim=0, return_counts=True)
         res = torch.zeros_like(unique_support_labels, dtype=torch.float).scatter_add_(0, support_labels, support_features)
@@ -92,12 +104,18 @@ class MetaBaseline(MetricLearner):
 
         return centroids
 
+    def freeze_batch_norm_layers(self):
+        for module in self.model.modules():
+            if isinstance(module, nn.BatchNorm2d):
+                module.requires_grad_(False)
+
     def forward(
         self,
         query: torch.Tensor,
         support: Optional[torch.Tensor] = None,
-        support_labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+        support_labels: Optional[torch.Tensor] = None,
+        labels: Optional[torch.Tensor] = None
+    ) -> tuple[torch.Tensor,...]:
         """
         Perform a forward pass as specified by the given query- and support set.
 
@@ -128,7 +146,6 @@ class MetaBaseline(MetricLearner):
 
         # flatten the input to bsz x dim_f
         features = self.model(query)
-        outputs = None
 
         if support is not None or self.cached_centroids is not None:
 
@@ -149,8 +166,11 @@ class MetaBaseline(MetricLearner):
 
             logits = self.dist_fn(features, centroids, dim=2)
             logits = self.temperature * logits
-            outputs = logits
+            return_params = logits,
 
+            if labels is not None:
+                loss = self.loss(logits, labels)
+                return_params += loss
         else:
 
             # Do a normal forward pass
@@ -161,6 +181,10 @@ class MetaBaseline(MetricLearner):
                 )
 
             logits = self.class_matrix(features)
-            outputs = logits
+            return_params = logits,
 
-        return outputs
+            if labels is not None:
+                loss = self.loss(logits, labels)
+                return_params += loss
+
+        return return_params

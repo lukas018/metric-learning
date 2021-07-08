@@ -49,8 +49,14 @@ class LightningPretrainModule(pl.LightningModule):
     def training_step(self, batch: torch.Tensor, _) -> torch.Tensor:
         inputs, labels = batch
         logits = self.metric_model(inputs)
-        labels = labels.long()
-        loss = self.loss_fn(logits, labels)
+
+        if len(logits) > 1:
+            logits, loss = logits
+        else:
+            logits = logits[0]
+            labels = labels.long()
+            loss = self.loss_fn(logits, labels)
+
         acc = accuracy(logits.softmax(dim=-1), labels)
         _log_step(self.log, "training", loss.item(), float(acc.item()))
         return loss
@@ -58,15 +64,31 @@ class LightningPretrainModule(pl.LightningModule):
     def validation_step(self, batch: torch.Tensor, _) -> Optional[Any]:
         inputs, labels = batch
         logits = self.metric_model(inputs)
-        labels = labels.long()
-        loss = self.loss_fn(logits, labels)
+
+        if len(logits) > 1:
+            logits, loss = logits
+        else:
+            logits = logits[0]
+            labels = labels.long()
+            loss = self.loss_fn(logits, labels)
+
         acc = accuracy(logits.softmax(dim=-1), labels)
         _log_step(self.log, "validation", loss.item(), float(acc.item()))
         return loss.item()
 
     def test_step(self, batch: torch.Tensor, _) -> Optional[Any]:
         inputs, labels = batch
-        labels = labels.long()
+        logits = self.metric_model(inputs)
+
+        inputs, labels = batch
+        logits = self.metric_model(inputs)
+
+        if len(logits) > 1:
+            logits, loss = logits
+        else:
+            labels = labels.long()
+            loss = self.loss_fn(logits, labels)
+
         logits = self.metric_model(inputs)
         loss = self.loss_fn(logits, labels)
         acc = accuracy(logits.softmax(dim=-1), labels)

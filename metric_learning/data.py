@@ -114,6 +114,18 @@ def split_vbs3_dataset(ds, split: float = 0.95):
     ds2 = _split_dataset(list(chain(*indices2)))
     return ds1, ds2
 
+
+class Epochifier(Dataset):
+    def __init__(self, tasks, length):
+        self.tasks = tasks
+        self.length = length
+
+    def __getitem__(self, *args, **kwargs):
+        return self.tasks.sample()
+
+    def __len__(self):
+        return self.length
+
 class EpisodicBatcher(pl.LightningDataModule):
 
     """
@@ -141,17 +153,6 @@ class EpisodicBatcher(pl.LightningDataModule):
 
     @staticmethod
     def epochify(taskset, epoch_length):
-        class Epochifier(Dataset):
-            def __init__(self, tasks, length):
-                self.tasks = tasks
-                self.length = length
-
-            def __getitem__(self, *args, **kwargs):
-                return self.tasks.sample()
-
-            def __len__(self):
-                return self.length
-
         return DataLoader(
             Epochifier(taskset, epoch_length), num_workers=8, batch_size=None
         )

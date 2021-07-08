@@ -52,8 +52,12 @@ class LightningPretrainModule(pl.LightningModule):
     def training_step(self, batch: torch.Tensor, _) -> torch.Tensor:
         inputs, labels = batch
         logits = self.metric_model(inputs)
-        labels = labels.long()
-        loss = self.loss_fn(logits, labels)
+        if len(logits) > 1:
+            logits, loss = logits
+        else:
+            logits, = logits
+            labels = labels.long()
+            loss = self.loss_fn(logits, labels)
         acc = accuracy(logits.softmax(dim=-1), labels)
         default_logger_step(self.log, "training", loss.item(), float(acc.item()))
         return loss
@@ -61,17 +65,25 @@ class LightningPretrainModule(pl.LightningModule):
     def validation_step(self, batch: torch.Tensor, _) -> Optional[Any]:
         inputs, labels = batch
         logits = self.metric_model(inputs)
-        labels = labels.long()
-        loss = self.loss_fn(logits, labels)
+        if len(logits) > 1:
+            logits, loss = logits
+        else:
+            logits, = logits
+            labels = labels.long()
+            loss = self.loss_fn(logits, labels)
         acc = accuracy(logits.softmax(dim=-1), labels)
         default_logger_step(self.log, "validation", loss.item(), float(acc.item()))
         return loss.item()
 
     def test_step(self, batch: torch.Tensor, _) -> Optional[Any]:
         inputs, labels = batch
-        labels = labels.long()
         logits = self.metric_model(inputs)
-        loss = self.loss_fn(logits, labels)
+        if len(logits) > 1:
+            logits, loss = logits
+        else:
+            logits, = logits
+            labels = labels.long()
+            loss = self.loss_fn(logits, labels)
         acc = accuracy(logits.softmax(dim=-1), labels)
         default_logger_step(self.log, "test", loss.item(), float(acc.item()))
         return loss.item()
@@ -100,6 +112,33 @@ class LightningPretrainModule(pl.LightningModule):
         return [optimizer], [lr_scheduler]
 
 
+def support_query_split(
+    ways: int, shots: int, queries: int, batch: tuple[torch.Tensor, torch.Tensor]
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    images, labels = batch
+    assert images.size(0) == ways * (shots + queries)
+
+    support_indices = np.zeros(images.size(0), dtype=bool)
+    selection = np.arange(ways) * (shots + queries)
+    for offset in range(shots):
+        support_indices[selection + offset] = True
+
+    query_indices = torch.from_numpy(~support_indices)
+    support_indices = torch.from_numpy(support_indices)
+
+    support = images[support_indices]
+    support_labels = labels[support_indices]
+    query = images[query_indices]
+    query_labels = labels[query_indices]
+
+    # Reshape
+    # support = support.reshape(
+    #     self.fs_arguments.ways, self.fs_arguments.shots, *support.shape[1:]
+    # )
+    # query_labels = torch.tensor(np.repeat(list(range(self.fs_arguments.ways)),self.fs_arguments.queries))
+    return support, support_labels, query, query_labels
+
+
 class LightningFewshotModule(pl.LightningModule):
     """Lightning Module for training few shot learners"""
 
@@ -115,33 +154,12 @@ class LightningFewshotModule(pl.LightningModule):
         batch: tuple[torch.Tensor, torch.Tensor],
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """ """
-
-        images, labels = batch
-        assert images.size(0) == self.fs_arguments.ways * (
-            self.fs_arguments.shots + self.fs_arguments.queries
+        return support_query_split(
+            self.fs_arguments.ways,
+            self.fs_arguments.shots,
+            self.fs_arguments.queries,
+            batch,
         )
-
-        support_indices = np.zeros(images.size(0), dtype=bool)
-        selection = np.arange(self.fs_arguments.ways) * (
-            self.fs_arguments.shots + self.fs_arguments.queries
-        )
-        for offset in range(self.fs_arguments.shots):
-            support_indices[selection + offset] = True
-
-        query_indices = torch.from_numpy(~support_indices)
-        support_indices = torch.from_numpy(support_indices)
-
-        support = images[support_indices]
-        support_labels = labels[support_indices]
-        query = images[query_indices]
-        query_labels = labels[query_indices]
-
-        # Reshape
-        # support = support.reshape(
-        #     self.fs_arguments.ways, self.fs_arguments.shots, *support.shape[1:]
-        # )
-        # query_labels = torch.tensor(np.repeat(list(range(self.fs_arguments.ways)),self.fs_arguments.queries))
-        return support, support_labels, query, query_labels
 
     def _meta_step(self, batch) -> tuple[torch.Tensor, torch.Tensor]:
         support, support_labels, query, query_labels = self._support_query_split(batch)
@@ -172,6 +190,6 @@ class LightningFewshotModule(pl.LightningModule):
             self.parameters(),
             lr=self.fs_arguments.lr,
             momentum=self.fs_arguments.momentum,
-            weight_decay=self.fs_arguments.weight_decay
+            weight_decay=self.fs_arguments.weight_decay,
         )
         return [optimizer]

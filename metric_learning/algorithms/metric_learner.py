@@ -7,5 +7,8 @@ from typing import Any
 class MetricLearner(torch.nn.Module):
 
     @abc.abstractmethod
-    def init_pretraining(*args, **kwargs) -> Any:
+    def init_pretraining(self, *args, **kwargs) -> Any:
+        pass
+
+    def init_fewshot(self, *args, **kwargs): -> Any:
         pass
